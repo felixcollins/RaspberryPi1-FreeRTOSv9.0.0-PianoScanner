@@ -20,6 +20,7 @@ void task1(void *pParam) {
 		i++;
 		xSemaphoreTake(led1Semaphore, portMAX_DELAY);
 		bcm2835_gpio_set(_RPI1_RDY_LED_PIN);
+		bcm2835_gpio_set(47);
 		// 1 sec
 		vTaskDelay(1000 / portTICK_PERIOD_MS);
 		xSemaphoreGive(led2Semaphore);
@@ -33,6 +34,7 @@ void task2(void *pParam) {
 		i++;
 		xSemaphoreTake(led2Semaphore, portMAX_DELAY);
 		bcm2835_gpio_clr(_RPI1_RDY_LED_PIN);
+		bcm2835_gpio_clr(47);
 		// 1 sec
 		vTaskDelay(1000 / portTICK_PERIOD_MS);
 		xSemaphoreGive(led1Semaphore);
