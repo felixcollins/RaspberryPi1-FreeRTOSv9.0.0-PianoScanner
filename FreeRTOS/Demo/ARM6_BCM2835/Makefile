@@ -28,7 +28,7 @@ CFLAGS=-nostartfiles
 # -D__SYS_TIMER__ to use the Sys Timer
 
 # Add linking flags
-LDFLAGS=
+LDFLAGS=--specs=nosys.specs
 
 # Linker script
 LINKERSCRIPT=raspberrypi.ld
