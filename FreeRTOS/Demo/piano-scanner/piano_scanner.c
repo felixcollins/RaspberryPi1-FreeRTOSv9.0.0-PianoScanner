@@ -43,7 +43,8 @@ void ps_init(void)
     // run consumer task
 
     // run producer task 
-    xTaskCreate(ps_producer_task, "key_producer", 1024, NULL, 5, NULL);
+    BaseType_t ret = xTaskCreate(ps_producer_task, "key_producer", 512, NULL, 2, NULL);
+    PS_LOG_FMT("Created key producer task %li", ret);
 }
 
 // This task scans the keyboard by clocking a shift 
@@ -78,7 +79,10 @@ void ps_producer_task(void *params)
     PS_LOG_FMT("Starting! %i", 1);
     for(;;)
     {
-        vTaskDelay(pdMS_TO_TICKS(500));
+        PS_LOG_FMT("Delaying loop %i", 1);
+        //vTaskDelay(pdMS_TO_TICKS(500));
+        bcm2835_delay(500);
+        
         PS_LOG_FMT("Loop %lu", loops);
         loops++;
         // if(loops % 10000 == 0)

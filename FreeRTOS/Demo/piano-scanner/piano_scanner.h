@@ -11,7 +11,10 @@
 #define PS_LOG_FMT(fmt, ...) \
             do { if (PS_DEBUG_LOGGING) fprintf(stderr, fmt "\n\r", __VA_ARGS__); } while (0)
 
+// This sets the number of shifts done in the shift register starting from the first bit
 #define PS_NUMBER_OF_KEY_BANKS 10
+
+// This number needs to stay the same unless the defines below are also changed
 #define PS_NUMBER_OF_KEYS_PER_BANK 8
 
 // Uses R-Pi1 B+ V1.2 GPIO 2 to 9 to get consecutive bits in the gpio port

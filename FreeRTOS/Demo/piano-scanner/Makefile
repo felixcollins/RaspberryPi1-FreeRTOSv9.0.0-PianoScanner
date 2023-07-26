@@ -54,7 +54,7 @@ include $(MAKEFILE_FILES)MakefileRPI1.cfg
 include $(MAKEFILE_FILES)Makefile.inc
 
 # Variables related to copy to SDCARD
-SDPATH=/Volumes/boot
+SDPATH=/media/felix/PiBoot
 
 # =============================================================================
 # BUILD TARGET
@@ -79,4 +79,4 @@ kernel.img: $(OUTFILE)
 install: kernel.img
 	$(RM) -f $(SDPATH)/kernel.img
 	$(CP) $(OUTDIR)/kernel.img $(SDPATH)
-	diskutil unmountDisk /dev/disk2
+	udisksctl unmount -b /dev/sdc1
