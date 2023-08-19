@@ -22,7 +22,7 @@ void ps_producer_task(void *params);
 
 void ps_init(void)
 {
-    PS_LOG_FMT("Init Piano Scanner %i", 1);
+    PS_LOG_FMT("Init Piano Scanner %i", 3);
 
     // set up gpio
     bcm2835_gpio_fsel(PS_SHIFT_REG_RESET_GPIO_NUMBER, BCM2835_GPIO_FSEL_OUTP);
@@ -38,6 +38,7 @@ void ps_init(void)
     for (size_t pin = PS_KEY_7_PORT_GPIO_NUMBER; pin <= PS_KEY_7_PORT_GPIO_NUMBER; pin++)
     {
         bcm2835_gpio_fsel(pin, BCM2835_GPIO_FSEL_INPT);
+        bcm2835_gpio_set_pud(pin, BCM2835_GPIO_PUD_DOWN);
     }
     
     // run consumer task
@@ -75,12 +76,11 @@ void ps_init(void)
 void ps_producer_task(void *params)
 {
     uint32_t loops = 0;
+    uint32_t start_time;
     bool led_on = false;
     PS_LOG_FMT("Starting! %i", 1);
     for(;;)
     {
-        PS_LOG_FMT("Delaying loop %i", 1);
-        //vTaskDelay(pdMS_TO_TICKS(500));
         bcm2835_delay(500);
         
         PS_LOG_FMT("Loop %lu", loops);
@@ -99,6 +99,11 @@ void ps_producer_task(void *params)
             }
             PS_LOG_FMT("LED %s", led_on ? "On" : "Off");
         // }
+
+        uint8_t bits = GPIO_READ_BANK();
+        PS_LOG_FMT("BANK BITS %2X", bits);
+
+        start_time = READ_U32BIT_US_TIME();
 
         // Reset shift register and clock a 1 to output 0
         GPIO__LOW(PS_SHIFT_REG_RESET_GPIO_NUMBER);
@@ -134,7 +139,7 @@ void ps_producer_task(void *params)
                     case PS_KEY_STATE_IDLE:
                         if(button_down)
                         {
-                            key_data[key].press_time = READ_U32BIT_US_TIME();
+                            key_data[key].press_time = current_time;
                             key_data[key].state = PS_KEY_STATE_STARTED;
                             PS_LOG_FMT("START: key:%i bank:%i, bit:%i ", key, bank, position);
                         }
@@ -199,7 +204,10 @@ void ps_producer_task(void *params)
             // clock shift register to next bank
             GPIO_HIGH(PS_SHIFT_REG_CLOCK_GPIO_NUMBER);
             GPIO__LOW(PS_SHIFT_REG_CLOCK_GPIO_NUMBER);
-
         }
+        
+        uint32_t end_time = READ_U32BIT_US_TIME();
+        PS_LOG_FMT("Start %lu end %lu", start_time, end_time);
+        PS_LOG_FMT("Elapsed %lu", end_time - start_time);
     }
 }
