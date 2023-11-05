@@ -20,16 +20,17 @@
 // Uses R-Pi1 B+ V1.2 GPIO 2 to 9 to get consecutive bits in the gpio port
 // If consecutive ports/bits are not available the port reading part of the code 
 // will need to be re-written. The defines below also assume PS_NUMBER_OF_KEYS_PER_BANK is 8
-#define PS_KEY_0_PORT_GPIO_NUMBER 2 
-#define PS_KEY_7_PORT_GPIO_NUMBER 9
+#define PS_KEY_0_PORT_GPIO_NUMBER 4 
+#define PS_KEY_7_PORT_GPIO_NUMBER 11
 #define PS_KEY_PORT_MASK (0x000000FF << PS_KEY_0_PORT_GPIO_NUMBER)
 
 // Control pins for MC595 Shift Registers
 // Three devices are used daisy chained to provide 24 outputs
 // A single bit is walked through the shift register to stimulate 
 // the m/b lines for all the banks
-#define PS_SHIFT_REG_RESET_GPIO_NUMBER 10
-#define PS_SHIFT_REG_INPUT_GPIO_NUMBER 11
+// 2,3 have pull ups on board.
+#define PS_SHIFT_REG_RESET_GPIO_NUMBER 2
+#define PS_SHIFT_REG_INPUT_GPIO_NUMBER 3
 #define PS_SHIFT_REG_CLOCK_GPIO_NUMBER 12
 #define PS_SHIFT_REG_LATCH_GPIO_NUMBER 13
 
@@ -37,7 +38,7 @@
 
 #define PS_STARTING_NOTE_MIDI_NUMBER 22
 
-#define PS_DEBOUNCE_TIME_US 10000
+#define PS_DEBOUNCE_TIME_US 2000
 
 // Abstraction of system calls
 #define GPIO_HIGH(pin)  bcm2835_gpio_set(pin)

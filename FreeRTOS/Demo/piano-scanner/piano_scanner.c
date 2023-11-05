@@ -21,7 +21,7 @@ void ps_producer_task(void *params);
 
 void ps_init(void)
 {
-    PS_LOG_FMT("Init Piano Scanner %i", 3);
+    PS_LOG_FMT("Init Piano Scanner %i", 4);
 
     // set up gpio
     bcm2835_gpio_fsel(PS_SHIFT_REG_RESET_GPIO_NUMBER, BCM2835_GPIO_FSEL_OUTP);
@@ -34,7 +34,7 @@ void ps_init(void)
     bcm2835_gpio_clr(PS_SHIFT_REG_CLOCK_GPIO_NUMBER);
     bcm2835_gpio_clr(PS_SHIFT_REG_LATCH_GPIO_NUMBER);
 
-    for (size_t pin = PS_KEY_7_PORT_GPIO_NUMBER; pin <= PS_KEY_7_PORT_GPIO_NUMBER; pin++)
+    for (size_t pin = PS_KEY_0_PORT_GPIO_NUMBER; pin <= PS_KEY_7_PORT_GPIO_NUMBER; pin++)
     {
         bcm2835_gpio_fsel(pin, BCM2835_GPIO_FSEL_INPT);
         bcm2835_gpio_set_pud(pin, BCM2835_GPIO_PUD_DOWN);
@@ -75,34 +75,34 @@ void ps_init(void)
 void ps_producer_task(void *params)
 {
     uint32_t loops = 0;
-    uint32_t start_time;
+    // uint32_t start_time;
     bool led_on = false;
     PS_LOG_FMT("Starting! %i", 1);
     for (;;)
     {
-        bcm2835_delay(500);
+        // bcm2835_delay(500);
         
-        PS_LOG_FMT("Loop %lu", loops);
+        // PS_LOG_FMT("Loop %lu", loops);
         loops++;
-        // if(loops % 10000 == 0)
-        // {
-        if (led_on)
+        if(loops % 1000 == 0)
         {
-            RUN_LED_OFF();
-            led_on = false;
+            if (led_on)
+            {
+                RUN_LED_OFF();
+                led_on = false;
+            }
+            else
+            {
+                RUN_LED_ON();
+                led_on = true;
+            }
+            // PS_LOG_FMT("LED %s", led_on ? "On" : "Off");
         }
-        else
-        {
-            RUN_LED_ON();
-            led_on = true;
-        }
-        PS_LOG_FMT("LED %s", led_on ? "On" : "Off");
-        // }
 
-        uint8_t bits = GPIO_READ_BANK();
-        PS_LOG_FMT("BANK BITS %2X", bits);
+        // uint8_t bits = GPIO_READ_BANK();
+        // PS_LOG_FMT("BANK BITS %2X", bits);
 
-        start_time = READ_U32BIT_US_TIME();
+        // start_time = READ_U32BIT_US_TIME();
 
         // Reset shift register and clock a 1 to output 0
         GPIO__LOW(PS_SHIFT_REG_RESET_GPIO_NUMBER);
@@ -129,7 +129,7 @@ void ps_producer_task(void *params)
             // if any start buttons set
             for (size_t position = 0; position < PS_NUMBER_OF_KEYS_PER_BANK; position++)
             {
-                int key = bank * position;
+                int key = bank * PS_NUMBER_OF_KEYS_PER_BANK + position;
                 // if the start key is down
                 bool button_down = bank_bits & (1 << position);
 
@@ -166,6 +166,8 @@ void ps_producer_task(void *params)
             GPIO_HIGH(PS_SHIFT_REG_LATCH_GPIO_NUMBER); // Latch the data out
             GPIO__LOW(PS_SHIFT_REG_LATCH_GPIO_NUMBER);
 
+            bcm2835_delayMicroseconds(10);
+
             // read end buttons of bank
             bank_bits = GPIO_READ_BANK();
             current_time = READ_U32BIT_US_TIME();
@@ -173,7 +175,7 @@ void ps_producer_task(void *params)
             {
                 for (size_t position = 0; position < PS_NUMBER_OF_KEYS_PER_BANK; position++)
                 {
-                    int key = bank * position;
+                    int key = bank * PS_NUMBER_OF_KEYS_PER_BANK + position;
                     // if the end key is down
                     bool button_down = bank_bits & (1 << position);
 
@@ -207,10 +209,12 @@ void ps_producer_task(void *params)
             GPIO__LOW(PS_SHIFT_REG_CLOCK_GPIO_NUMBER);
             GPIO_HIGH(PS_SHIFT_REG_LATCH_GPIO_NUMBER); // Latch the data out
             GPIO__LOW(PS_SHIFT_REG_LATCH_GPIO_NUMBER);
+
+            bcm2835_delayMicroseconds(10);
         }
         
-        uint32_t end_time = READ_U32BIT_US_TIME();
-        PS_LOG_FMT("Start %lu end %lu", start_time, end_time);
-        PS_LOG_FMT("Elapsed %lu", end_time - start_time);
+        // uint32_t end_time = READ_U32BIT_US_TIME();
+        // PS_LOG_FMT("Start %lu end %lu", start_time, end_time);
+        // PS_LOG_FMT("Elapsed %lu", end_time - start_time);
     }
 }
