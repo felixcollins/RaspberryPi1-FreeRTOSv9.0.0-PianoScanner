@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include "piano_scanner.h"
 #include "drivers/bcm2835.h"
+#include "bcm2835_miniuart.h"
 
 #define PS_KEY_STATE_IDLE 0
 #define PS_KEY_STATE_STARTED 1
@@ -17,11 +18,75 @@ typedef struct
 
 key_data_t key_data[PS_NUMBER_OF_KEY_BANKS * PS_NUMBER_OF_KEYS_PER_BANK];
 
+static char midi_out_buffer[PS_MIDI_OUT_BUFFER_SIZE_BYTES];
+static int midi_out_buffer_in_index;
+static int midi_out_buffer_out_index;
+// Empty condition midi_out_buffer_in_index == midi_out_buffer_out_index
+#define MIDI_OUT_BUFFER_EMPTY (midi_out_buffer_out_index == midi_out_buffer_in_index)
+#define MIDI_OUT_BUFFER_FULL (midi_out_buffer_out_index == 0 ? midi_out_buffer_in_index == PS_MIDI_OUT_BUFFER_SIZE_BYTES - 1 : midi_out_buffer_in_index == midi_out_buffer_out_index - 1)
+// Full condition midi_out_buffer_out_index == midi_out_buffer_in_index + 1  (modulo PS_MIDI_OUT_BUFFER_SIZE_BYTES)
+#define MIDI_OUT_BUFFER_INDEX_INCREMENT(index) (index = (index < PS_MIDI_OUT_BUFFER_SIZE_BYTES - 1 ? index + 1 : 0))
+
 void ps_producer_task(void *params);
+
+// The consumer task is this function - run cooperatively
+void ps_consume_char_from_buffer_if_possible()
+{
+    if (MIDI_OUT_BUFFER_EMPTY) return;
+    if(UART_TX_READY())
+    {
+        UART_TX_CHAR(midi_out_buffer[midi_out_buffer_out_index]); // block if no fifo space available
+        MIDI_OUT_BUFFER_INDEX_INCREMENT(midi_out_buffer_out_index);
+    }
+}
+
+char ps_map_key_to_note(int key)
+{
+    return (char) (key + PS_MIDI_NOTE_KEY0_OFFSET);
+}
+
+char ps_map_time_to_velocity(uint32_t key_time_us)
+{
+    float velocity = (key_time_us * PS_VELOCITY_MAPPING_SLOPE + PS_VELOCITY_MAPPING_OFFSET);
+    PS_SATURATE(MIDI_MAX_VELOCITY, MIDI_MIN_VELOCITY, velocity);
+    return (char)(velocity + 0.5);
+}
+
+void ps_send_char_to_buffer_blocking_if_full(char data)
+{
+    if(MIDI_OUT_BUFFER_FULL)
+    {
+        ps_consume_char_from_buffer_if_possible();
+    }
+    midi_out_buffer[midi_out_buffer_in_index] = data;
+    MIDI_OUT_BUFFER_INDEX_INCREMENT(midi_out_buffer_in_index);
+}
+
+void ps_send_note_on(int key, uint32_t key_time_us)
+{
+    ps_send_char_to_buffer_blocking_if_full(MIDI_STATUS_NOTE_ON(PS_MIDI_CHANNEL));
+    ps_send_char_to_buffer_blocking_if_full(ps_map_key_to_note(key));
+    ps_send_char_to_buffer_blocking_if_full(ps_map_time_to_velocity(key_time_us));
+}
+
+void ps_send_note_off(int key)
+{
+    ps_send_char_to_buffer_blocking_if_full(MIDI_STATUS_NOTE_OFF(PS_MIDI_CHANNEL));
+    ps_send_char_to_buffer_blocking_if_full(ps_map_key_to_note(key));
+    ps_send_char_to_buffer_blocking_if_full(0); // Not sending note off velocity for now.
+}
 
 void ps_init(void)
 {
     PS_LOG_FMT("Init Piano Scanner %i", 4);
+	printf("Slope : %f\n\r", PS_VELOCITY_MAPPING_SLOPE);
+	printf("Offset : %f\n\r", PS_VELOCITY_MAPPING_OFFSET);
+	printf("Slope : %i\n\r", (int)PS_VELOCITY_MAPPING_SLOPE);
+	printf("Offset : %i\n\r", (int)PS_VELOCITY_MAPPING_OFFSET);
+	printf("80000 : %i\n\r", ps_map_time_to_velocity(80000));
+	printf("90000 : %i\n\r", ps_map_time_to_velocity(90000));
+	printf("2900 : %i\n\r", ps_map_time_to_velocity(2900));
+	printf("1000 : %i\n\r", ps_map_time_to_velocity(1000));
 
     // set up gpio
     bcm2835_gpio_fsel(PS_SHIFT_REG_RESET_GPIO_NUMBER, BCM2835_GPIO_FSEL_OUTP);
@@ -53,6 +118,9 @@ void ps_init(void)
 // back to the m/b lines. Either an m or b line for one bank at a time is energised
 // and then the 8 keys in the bank can be read on the gpio inputs
 //
+// Each scan loop, the consumer task is cooperatively run
+// This is simply attempting to send a char to the uart if available
+//
 // The following state machine is implemented
 //
 //                  Start button down          End button down
@@ -80,6 +148,10 @@ void ps_producer_task(void *params)
     PS_LOG_FMT("Starting! %i", 1);
     for (;;)
     {
+        // Consumer task is implemented here cooperatively
+        // TODO - If we only have one task why are we using an rtos!??
+        ps_consume_char_from_buffer_if_possible();
+
         // bcm2835_delay(500);
         
         // PS_LOG_FMT("Loop %lu", loops);
@@ -155,6 +227,7 @@ void ps_producer_task(void *params)
                     {
                         key_data[key].state = PS_KEY_STATE_IDLE;
                         PS_LOG_FMT("IDLE: key:%i bank:%i, bit:%i", key, bank, position);
+                        ps_send_note_off(key);
                     }
                     break;
                 }
@@ -194,7 +267,8 @@ void ps_producer_task(void *params)
                             uint32_t duration = current_time - key_data[key].press_time;
                             key_data[key].state = PS_KEY_STATE_HIT;
                             PS_LOG_FMT("HIT key:%i bank:%i, bit:%i, duration:%lu", key, bank, position, duration);
-                            // todo calc the velocity and queue the hit
+                            ps_send_note_on(key, duration);
+
                         }
                         break;
                     case PS_KEY_STATE_HIT:

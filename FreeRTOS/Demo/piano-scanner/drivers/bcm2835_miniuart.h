@@ -27,4 +27,6 @@ void bcm2835_miniuart_enableRX(bool enable);
 
 void bcm2835_miniuart_enableTX(bool enable);
 
+bool bcm2835_miniuart_is_transmitter_empty();
+
 #endif /* FREERTOS_DEMO_ARM6_BCM2835_DRIVERS_BCM2835_MINIUART_H_ */

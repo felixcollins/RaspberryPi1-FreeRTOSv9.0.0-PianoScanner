@@ -29,9 +29,9 @@ int main (void) {
 
 	ps_init();
 
-	printf("Starting scheduler\n\r");
+	//printf("Starting scheduler\n\r");
 	vTaskStartScheduler();
-	printf("Scheduler returned!\n\r");
+	//printf("Scheduler returned!\n\r");
 
 	/*
 	 *	We should never get here, but just in case something goes wrong,
